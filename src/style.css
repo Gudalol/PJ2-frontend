@@ -40,7 +40,7 @@ body {
   flex-grow: 1;
   padding: 20px;
   min-height: 100vh;
-  background-color: #ffffff; /* Fundo do conteúdo mais claro */
+  background-color: #ffffff ; 
 }
 
 .main-content h1,
@@ -48,7 +48,7 @@ body {
 .main-content label,
 .main-content p,
 .main-content button {
-  color: #212121; /* Cor da fonte nos títulos e textos */
+  color: #212121; 
 }
 
 /* Estilos da Tabela */

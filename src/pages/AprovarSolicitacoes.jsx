@@ -4,7 +4,7 @@ import '../style.css';
 function AprovarSolicitacoes() {
   return (
     <div className="main-content">
-      <h1>Aprovar Solicitações de Monitoria</h1>
+      <h1>Aprovar Requisições de Monitoria</h1>
 
       <table>
         <thead>
