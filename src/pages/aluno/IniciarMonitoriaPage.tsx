@@ -77,7 +77,7 @@ export default function IniciarMonitoriaPage() {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ scheduleId: monitoriaSelecionada }),
+      body: JSON.stringify({ monitoringScheduleId: monitoriaSelecionada }),
     })
       .then((res) => {
         if (res.ok) {
@@ -97,7 +97,7 @@ export default function IniciarMonitoriaPage() {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        scheduleId: monitoriaSelecionada,
+        monitoringScheduleId: monitoriaSelecionada,
         description: descricao,
       }),
     })
@@ -110,17 +110,53 @@ export default function IniciarMonitoriaPage() {
       .finally(() => setLoading(false));
   }
 
-  // Busca a monitoria selecionada (garante comparação por string)
+  // Busca a monitoria selecionada garatindo comparação correta de tipos
   const monitoria = monitorias.find((m) => String(m.id) === String(monitoriaSelecionada));
+
+  // Alerta o usuário ao tentar fechar/recarregar a página com monitoria ativa
+  useEffect(() => {
+    if (!monitoriaAtiva) return;
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "Você tem uma monitoria em andamento. Tem certeza que deseja sair?";
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [monitoriaAtiva]);
+
+  // Carrega estado salvo ao montar
+  useEffect(() => {
+    const ativa = localStorage.getItem("monitoriaAtiva") === "true";
+    const inicioStr = localStorage.getItem("monitoriaInicio");
+    const selecionada = localStorage.getItem("monitoriaSelecionada") || "";
+    if (ativa && inicioStr && selecionada) {
+      setMonitoriaAtiva(true);
+      setInicio(new Date(inicioStr));
+      setMonitoriaSelecionada(selecionada);
+    }
+  }, []);
+
+  // Salva estado ao iniciar/finalizar monitoria
+  useEffect(() => {
+    if (monitoriaAtiva && inicio && monitoriaSelecionada) {
+      localStorage.setItem("monitoriaAtiva", "true");
+      localStorage.setItem("monitoriaInicio", inicio.toISOString());
+      localStorage.setItem("monitoriaSelecionada", monitoriaSelecionada);
+    } else {
+      localStorage.removeItem("monitoriaAtiva");
+      localStorage.removeItem("monitoriaInicio");
+      localStorage.removeItem("monitoriaSelecionada");
+    }
+  }, [monitoriaAtiva, inicio, monitoriaSelecionada]);
 
   return (
     <div className="flex h-full w-full bg-[#F1F7FA]">
       <SidebarProvider>
         <AppSidebarAluno />
         <SidebarTrigger className="md:hidden fixed top-4 left-4 z-50" />
-        <main className="flex-1 p-8">
+        <main className="flex-1 p-8 flex flex-col items-start">
           {/* Título e descrição */}
-          <div className="mb-12">
+          <div className="mb-12 w-full">
             <div className="flex items-center gap-4">
               <Clock className="w-8 h-8 text-primary" />
               <h1 className="text-3xl font-extrabold text-primary drop-shadow-sm">
@@ -133,15 +169,15 @@ export default function IniciarMonitoriaPage() {
             <div className="h-1 w-24 bg-primary/20 rounded mt-4 ml-12" />
           </div>
 
-          {/* Card central minimalista */}
-          <div className="flex flex-col items-center justify-center gap-6 bg-white rounded-xl shadow-md w-full p-8">
+          {/* Card lateral minimalista alinhado à esquerda */}
+          <div className="flex flex-col gap-6 bg-white rounded-xl shadow-md w-full p-8 items-start">
             <Badge variant={monitoriaAtiva ? "success" : "secondary"} className="mb-2">
               {monitoriaAtiva ? "Monitoria em andamento" : "Monitoria não iniciada"}
             </Badge>
 
             {/* Nome da monitoria selecionada, dia e horário */}
             {monitoriaSelecionada && monitoria && (
-              <div className="text-lg font-semibold text-primary text-center w-full">
+              <div className="text-lg font-semibold text-primary w-full">
                 {monitoria.discipline}
                 <div className="text-base text-gray-700 font-normal">
                   {traduzirDia(monitoria.dayOfWeek)}
