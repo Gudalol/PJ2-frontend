@@ -8,15 +8,37 @@ import { fetchComToken } from "../../utils/fetchComToken";
 export default function RequisitarHorarioPage() {
   const [cardExpandido, setCardExpandido] = useState<number | null>(null);
   const [materias, setMaterias] = useState<any[]>([]);
+  const [cargaHorariaFaltante, setCargaHorariaFaltante] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchComToken(`${import.meta.env.VITE_API_URL}/monitoring/me`)
+    fetchComToken(`${import.meta.env.VITE_API_URL}/monitoring/students/me`)
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) setMaterias(data);
         else setMaterias([]);
       })
       .catch(() => setMaterias([]));
+
+    // Buscar carga horária semanal faltante
+    fetchComToken(`${import.meta.env.VITE_API_URL}/weekly-workloads/missing`)
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.missingWeeklyWorkload) {
+          // Pode vir como string "10:00:00" ou objeto { hour, minute, ... }
+          if (typeof data.missingWeeklyWorkload === "string") {
+            setCargaHorariaFaltante(data.missingWeeklyWorkload);
+          } else if (typeof data.missingWeeklyWorkload === "object") {
+            // Monta string HH:MM:SS
+            const h = String(data.missingWeeklyWorkload.hour).padStart(2, '0');
+            const m = String(data.missingWeeklyWorkload.minute).padStart(2, '0');
+            const s = String(data.missingWeeklyWorkload.second).padStart(2, '0');
+            setCargaHorariaFaltante(`${h}:${m}:${s}`);
+          }
+        } else {
+          setCargaHorariaFaltante(null);
+        }
+      })
+      .catch(() => setCargaHorariaFaltante(null));
   }, []);
 
   return (
@@ -35,6 +57,11 @@ export default function RequisitarHorarioPage() {
             <p className="text-gray-500 mt-2 ml-12">
               Solicite um horário de monitoria ao professor.
             </p>
+            {cargaHorariaFaltante && (
+              <div className="ml-12 mt-2 text-base text-primary font-semibold bg-primary/10 rounded-lg px-4 py-2 inline-block">
+                Carga horária semanal faltante: <span className="font-bold">{cargaHorariaFaltante}</span>
+              </div>
+            )}
             <div className="h-1 w-24 bg-primary/20 rounded mt-4 ml-12" />
           </div>
           <div className="flex flex-col w-full px-4 py-8 gap-4">

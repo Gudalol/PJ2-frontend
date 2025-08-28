@@ -8,10 +8,12 @@ import {
   FormMessage,
 } from "../../../components/ui/form"
 import { Input } from "../../../components/ui/input"
+import { setCookie } from "../../../utils/fetchComToken";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useNavigate } from "react-router-dom";
+
 
 const formSchemaLogin = z.object({
   matricula: z.string().min(1, "Campo Obrigatório").max(12, "Máximo 12 caracteres"),
@@ -42,10 +44,12 @@ export function LoginForm() {
       .then(async (res) => {
         const data = await res.json();
         if (res.ok) {
-          localStorage.setItem("token", data.accessToken);
-          localStorage.setItem("refreshToken", data.refreshToken);
-          // Redireciona se matrícula não tiver 7 dígitos
-          if (values.matricula.length !== 7) {
+          setCookie("token", data.accessToken);
+          setCookie("refreshToken", data.refreshToken);
+          // 7 dígitos = professor, caso contrário aluno
+          if (/^\d{7}$/.test(values.matricula)) {
+            navigate("/professor/disciplinas");
+          } else {
             navigate("/requisitar-horario");
           }
         } else {

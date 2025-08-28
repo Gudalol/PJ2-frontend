@@ -1,4 +1,4 @@
-import { BookOpen, BookOpenCheck, Calendar, PanelLeftIcon, LogOut, Download } from "lucide-react"
+import { BookOpen, ClipboardList, LogOut, PanelLeftIcon, BarChart3 } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -9,41 +9,33 @@ import {
   SidebarMenuItem,
   SidebarRail,
   useSidebar,
-} from "./ui/sidebar"
-import { Link, useLocation } from "react-router-dom"
+  SidebarProvider,
+  SidebarTrigger,
+} from "./sidebar";
+import { Link, useLocation } from "react-router-dom";
 
+// Ícones e rotas do professor
 const items = [
   {
-    title: "Requisitar Horário",
-    url: "/requisitar-horario",
-    icon: Calendar,
+    title: "Requisições de Monitoria",
+    url: "/professor/requisicoes-monitoria",
+    icon: ClipboardList,
   },
   {
-    title: "Minhas Monitorias",
-    url: "/minhas-monitorias",
+    title: "Disciplinas",
+    url: "/professor/disciplinas",
     icon: BookOpen,
   },
   {
-    title: "Iniciar Monitoria",
-    url: "/iniciar-monitoria",
-    icon: BookOpenCheck,
+    title: "Estatísticas das Disciplinas",
+    url: "/professor/estatisticas-disciplinas",
+    icon: BarChart3,
   },
-  {
-    title: "PDF Carga Horária",
-    url: "/aluno/pdf-carga-horaria",
-    icon: Download,
-  },
-]
+];
 
-export function AppSidebarAluno() {
+export function AppSidebarProfessor() {
   const location = useLocation();
   const { state } = useSidebar(); // "expanded" ou "collapsed"
-
-  function handleLogout() {
-    document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    document.cookie = "refreshToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    window.location.href = "/login";
-  }
 
   return (
     <Sidebar collapsible="icon">
@@ -61,7 +53,7 @@ export function AppSidebarAluno() {
           <span className={`text-xs text-gray-400 mt-1 transition-all duration-200 ${
             state === "collapsed" ? "inline md:hidden" : ""
           }`}>
-            Aluno
+            Professor
           </span>
         </div>
         <SidebarGroup>
@@ -73,7 +65,6 @@ export function AppSidebarAluno() {
                 if (ativo && state === "expanded") {
                   destaqueClasses = "bg-primary/10 text-primary border-l-4 border-black shadow";
                 } else if (ativo && state === "collapsed") {
-                  // Destaque especial para mobile (collapsed)
                   destaqueClasses = ativo
                     ? "bg-primary/10 text-primary border-l-4 border-primary shadow"
                     : "bg-gray-200";
@@ -101,24 +92,29 @@ export function AppSidebarAluno() {
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                )
+                );
               })}
-              {/* Logoff item */}
-              <SidebarMenuItem className="mb-6 mt-8">
-                <SidebarMenuButton
-                  asChild
-                  className="flex items-center gap-4 px-6 py-4 rounded-xl text-lg font-semibold transition-all duration-200 hover:bg-red-100 hover:text-red-700 hover:shadow"
-                >
-                  <button type="button" onClick={handleLogout} className="flex items-center gap-4 w-full text-left">
-                    <LogOut className="w-8 h-8" />
-                    <span className={state === "collapsed" ? "inline md:hidden" : ""}>Sair</span>
-                  </button>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
             </SidebarMenu>
+            {/* Botão de logoff logo após os itens do menu */}
+            <SidebarMenuItem className="mb-6 mt-160">
+              <SidebarMenuButton
+                asChild
+                className="flex items-center gap-4 px-6 py-4 rounded-xl text-lg font-semibold transition-all duration-200 hover:bg-red-100 hover:text-red-700 hover:shadow"
+              >
+                <button type="button" onClick={() => {
+                  document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+                  document.cookie = "refreshToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+                  window.location.href = "/login";
+                }} className="flex items-center gap-4 w-full text-left">
+                  <LogOut className="w-8 h-8" />
+                  <span className={state === "collapsed" ? "inline md:hidden" : ""}>Sair</span>
+                </button>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
     </Sidebar>
-  )
+  );
 }
+

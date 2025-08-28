@@ -4,7 +4,7 @@ import { SidebarProvider, SidebarTrigger } from "../../components/ui/sidebar";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { Alert, AlertTitle, AlertDescription } from "../../components/ui/alert";
-import { PlayCircle, StopCircle, Clock } from "lucide-react";
+import { PlayCircle, Clock } from "lucide-react";
 import { fetchComToken } from "../../utils/fetchComToken";
 
 // Função utilitária para traduzir o dia da semana
@@ -32,85 +32,71 @@ export default function IniciarMonitoriaPage() {
   const [inicio, setInicio] = useState<Date | null>(null);
   const [monitorias, setMonitorias] = useState<any[]>([]);
   const [monitoriaSelecionada, setMonitoriaSelecionada] = useState<string>("");
-  const [descricao, setDescricao] = useState("");
   const [loading, setLoading] = useState(false);
+  const [monitoriaNome, setMonitoriaNome] = useState<string>("");
+  const [erro, setErro] = useState<string | null>(null);
+  const [topicosSelecionados, setTopicosSelecionados] = useState<string[]>([]);
+  const [topicosDaMonitoria, setTopicosDaMonitoria] = useState<string[]>([]);
 
   // Adiciona monitoria mock automaticamente para testes
   useEffect(() => {
-    fetchComToken(`${import.meta.env.VITE_API_URL}/monitoring/schedules/me`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          setMonitorias(data);
-        } else {
-          // Adiciona mock só se a API não retornar nada
-          setMonitorias([
-            {
-              id: String(Date.now()),
-              discipline: "Matemática",
-              dayOfWeek: "MONDAY",
-              startTime: "14:00:00",
-              endTime: "16:00:00",
-            },
-          ]);
+    // Corrigido: buscar monitorias do dia do aluno
+    fetchComToken(`${import.meta.env.VITE_API_URL}/monitoring/schedules/students/me`)
+      .then(async (res) => {
+        if (!res.ok) {
+          const msg = await res.text();
+          setMonitorias([]);
+          setErro(msg || "Erro ao buscar monitorias do dia");
+          return;
         }
+        const data = await res.json();
+        setMonitorias(Array.isArray(data) ? data : []);
       })
-      .catch(() => {
-        // Em caso de erro, adiciona mock para teste
-        setMonitorias([
-          {
-            id: String(Date.now()),
-            discipline: "Matemática",
-            dayOfWeek: "MONDAY",
-            startTime: "14:00:00",
-            endTime: "16:00:00",
-          },
-        ]);
+      .catch((err) => {
+        setMonitorias([]);
+        setErro(err.message || "Erro ao buscar monitorias do dia");
       });
   }, []);
 
   function handleStart() {
     if (!monitoriaSelecionada) return;
     setLoading(true);
-    fetchComToken(`${import.meta.env.VITE_API_URL}/monitoring/sessions/start`, {
+    setErro(null);
+    fetchComToken(`${import.meta.env.VITE_API_URL}/monitoring/sessions/students/start`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ monitoringScheduleId: monitoriaSelecionada }),
     })
-      .then((res) => {
+      .then(async (res) => {
         if (res.ok) {
           setMonitoriaAtiva(true);
           setInicio(new Date());
+        } else {
+          // Tenta extrair mensagem detalhada do backend
+          let msg = "Erro ao iniciar monitoria. Tente novamente.";
+          try {
+            const data = await res.json();
+            if (data && data.message) msg = data.message;
+            else if (typeof data === 'string') msg = data;
+          } catch (e) {
+            // fallback para texto puro
+            try {
+              const text = await res.text();
+              if (text) msg = text;
+            } catch {}
+          }
+          setErro(msg);
         }
+      })
+      .catch(() => {
+        setErro("Erro de conexão ao iniciar monitoria. Tente novamente.");
       })
       .finally(() => setLoading(false));
   }
 
-  function handleStop() {
-    if (!monitoriaSelecionada) return;
-    setLoading(true);
-    fetchComToken(`${import.meta.env.VITE_API_URL}/monitoring/sessions/finish`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        monitoringScheduleId: monitoriaSelecionada,
-        description: descricao,
-      }),
-    })
-      .then((res) => {
-        if (res.ok) {
-          setMonitoriaAtiva(false);
-          setDescricao("");
-        }
-      })
-      .finally(() => setLoading(false));
-  }
-
-  // Busca a monitoria selecionada garatindo comparação correta de tipos
+  // Busca a monitoria selecionada garantindo comparação correta de tipos
   const monitoria = monitorias.find((m) => String(m.id) === String(monitoriaSelecionada));
 
   // Alerta o usuário ao tentar fechar/recarregar a página com monitoria ativa
@@ -124,33 +110,50 @@ export default function IniciarMonitoriaPage() {
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [monitoriaAtiva]);
 
-  // Carrega estado salvo ao montar
+  // Busca sessão de monitoria ativa ao montar
   useEffect(() => {
-    const ativa = localStorage.getItem("monitoriaAtiva") === "true";
-    const inicioStr = localStorage.getItem("monitoriaInicio");
-    const selecionada = localStorage.getItem("monitoriaSelecionada") || "";
-    if (ativa && inicioStr && selecionada) {
-      setMonitoriaAtiva(true);
-      setInicio(new Date(inicioStr));
-      setMonitoriaSelecionada(selecionada);
-    }
+    fetchComToken(`${import.meta.env.VITE_API_URL}/monitoring/sessions/students/started`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.monitoringScheduleId && data.startTime) {
+          setMonitoriaAtiva(true);
+          setMonitoriaSelecionada(String(data.monitoringScheduleId));
+          setInicio(new Date(data.startTime));
+          setMonitoriaNome(data.monitoring || "");
+        } else {
+          setMonitoriaAtiva(false);
+          setInicio(null);
+          setMonitoriaSelecionada("");
+          setMonitoriaNome("");
+        }
+      })
+      .catch(() => {
+        setMonitoriaAtiva(false);
+        setInicio(null);
+        setMonitoriaSelecionada("");
+        setMonitoriaNome("");
+      });
   }, []);
 
-  // Salva estado ao iniciar/finalizar monitoria
+  // Atualiza tópicos disponíveis ao selecionar monitoria
   useEffect(() => {
-    if (monitoriaAtiva && inicio && monitoriaSelecionada) {
-      localStorage.setItem("monitoriaAtiva", "true");
-      localStorage.setItem("monitoriaInicio", inicio.toISOString());
-      localStorage.setItem("monitoriaSelecionada", monitoriaSelecionada);
-    } else {
-      localStorage.removeItem("monitoriaAtiva");
-      localStorage.removeItem("monitoriaInicio");
-      localStorage.removeItem("monitoriaSelecionada");
+    if (!monitoriaSelecionada) {
+      setTopicosDaMonitoria([]);
+      setTopicosSelecionados([]);
+      return;
     }
-  }, [monitoriaAtiva, inicio, monitoriaSelecionada]);
+    const m = monitorias.find((m) => String(m.id) === String(monitoriaSelecionada));
+    if (m && Array.isArray(m.topics) && m.topics.length > 0) {
+      setTopicosDaMonitoria(m.topics);
+    } else {
+      // Tópicos padrão caso não venha do backend
+      setTopicosDaMonitoria(["Aritmética", "Álgebra"]);
+    }
+    setTopicosSelecionados([]);
+  }, [monitoriaSelecionada, monitorias]);
 
   return (
-    <div className="flex h-full w-full bg-[#F1F7FA]">
+    <div className="flex h-full w-full bg-gradient-to-br from-[#bddae2] via-[#e6f4ec] to-white">
       <SidebarProvider>
         <AppSidebarAluno />
         <SidebarTrigger className="md:hidden fixed top-4 left-4 z-50" />
@@ -168,29 +171,38 @@ export default function IniciarMonitoriaPage() {
             </p>
             <div className="h-1 w-24 bg-primary/20 rounded mt-4 ml-12" />
           </div>
-
+          {/* Exibe erro, se houver */}
+          {erro && (
+            <Alert variant="destructive" className="w-full mb-4">
+              <AlertTitle>Erro</AlertTitle>
+              <AlertDescription>{erro}</AlertDescription>
+            </Alert>
+          )}
           {/* Card lateral minimalista alinhado à esquerda */}
-          <div className="flex flex-col gap-6 bg-white rounded-xl shadow-md w-full p-8 items-start">
-            <Badge variant={monitoriaAtiva ? "success" : "secondary"} className="mb-2">
+          <div className="flex flex-col gap-6 bg-gradient-to-br from-[#bddae2] via-[#e6f4ec] to-white rounded-xl shadow-md border border-[#b2c9d6] w-full p-8 items-start">
+            <Badge variant={monitoriaAtiva ? "secondary" : "secondary"} className="mb-2">
               {monitoriaAtiva ? "Monitoria em andamento" : "Monitoria não iniciada"}
             </Badge>
-
             {/* Nome da monitoria selecionada, dia e horário */}
-            {monitoriaSelecionada && monitoria && (
+            {monitoriaAtiva && monitoriaNome && (
+              <div className="text-lg font-semibold text-primary w-full">
+                {monitoriaNome}
+              </div>
+            )}
+            {!monitoriaAtiva && monitoriaSelecionada && monitoria && (
               <div className="text-lg font-semibold text-primary w-full">
                 {monitoria.discipline}
                 <div className="text-base text-gray-700 font-normal">
                   {traduzirDia(monitoria.dayOfWeek)}
                   <br />
-                  {formatarHora(monitoria.startTime)} às {formatarHora(monitoria.endTime)}
+                  {monitoria.startTime ? formatarHora(monitoria.startTime) : "-"} às {monitoria.endTime ? formatarHora(monitoria.endTime) : "-"}
                 </div>
               </div>
             )}
-
             {!monitoriaAtiva && (
               <div className="w-full flex">
                 <select
-                  className="w-72 border rounded p-2"
+                  className="w-72 border border-[#b2c9d6] rounded p-2 bg-white/80 focus:border-primary focus:ring-primary"
                   value={monitoriaSelecionada}
                   onChange={(e) => setMonitoriaSelecionada(e.target.value)}
                 >
@@ -209,7 +221,6 @@ export default function IniciarMonitoriaPage() {
                 </select>
               </div>
             )}
-
             {monitoriaAtiva && inicio && (
               <Alert className="w-full">
                 <AlertTitle>Monitoria iniciada</AlertTitle>
@@ -218,35 +229,44 @@ export default function IniciarMonitoriaPage() {
                 </AlertDescription>
               </Alert>
             )}
-
-            {monitoriaAtiva && (
-              <textarea
-                className="w-full border rounded p-2"
-                placeholder="Descreva o que foi feito nesta sessão..."
-                value={descricao}
-                onChange={(e) => setDescricao(e.target.value)}
-                rows={3}
-              />
+            {monitoriaAtiva && topicosDaMonitoria.length > 0 && (
+              <div className="flex flex-col gap-2 w-full">
+                <span className="font-semibold text-primary">Tópicos abordados nesta sessão:</span>
+                <div className="flex flex-wrap gap-3">
+                  {topicosDaMonitoria.map((topico) => (
+                    <label key={topico} className="flex items-center gap-2 bg-primary/10 px-3 py-1 rounded-full cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={topicosSelecionados.includes(topico)}
+                        onChange={e => {
+                          if (e.target.checked) setTopicosSelecionados([...topicosSelecionados, topico]);
+                          else setTopicosSelecionados(topicosSelecionados.filter(t => t !== topico));
+                        }}
+                        disabled={false}
+                      />
+                      <span>{topico}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
             )}
-
+            {monitoriaAtiva && (
+              // Removido textarea de descrição livre
+              null
+            )}
             <div className="flex w-full">
-              <Button
-                size="lg"
-                className={`w-72 flex items-center gap-2 justify-center ${!monitoriaAtiva ? "bg-green-600 hover:bg-green-700 text-white" : ""}`}
-                variant={monitoriaAtiva ? "destructive" : "default"}
-                onClick={monitoriaAtiva ? handleStop : handleStart}
-                disabled={loading || (!monitoriaAtiva && !monitoriaSelecionada)}
-              >
-                {monitoriaAtiva ? (
-                  <>
-                    <StopCircle className="w-5 h-5" /> Finalizar Monitoria
-                  </>
-                ) : (
-                  <>
-                    <PlayCircle className="w-5 h-5" /> Iniciar Monitoria
-                  </>
-                )}
-              </Button>
+              {!monitoriaAtiva && (
+                <Button
+                  size="lg"
+                  className="w-72 flex items-center gap-2 justify-center bg-green-600 hover:bg-green-700 text-white"
+                  variant="default"
+                  onClick={handleStart}
+                  disabled={loading || !monitoriaSelecionada}
+                >
+                  <PlayCircle className="w-5 h-5" /> Iniciar Monitoria
+                </Button>
+              )}
+              {/* Quando monitoria está ativa, não exibe botão de finalizar */}
             </div>
           </div>
         </main>

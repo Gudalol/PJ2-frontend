@@ -21,13 +21,23 @@ export default function MinhasMonitoriasPage() {
   const [erro, setErro] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchComToken(`${import.meta.env.VITE_API_URL}/monitoring/schedules/me`)
-      .then((res) => {
-        if (!res.ok) throw new Error("Erro ao buscar monitorias");
-        return res.json();
+    fetchComToken(`${import.meta.env.VITE_API_URL}/monitoring/schedules/students/me`)
+      .then(async (res) => {
+        if (!res.ok) {
+          const msg = await res.text();
+          setErro(msg || "Erro ao buscar monitorias");
+          console.error("Erro monitorias:", msg);
+          return [];
+        }
+        const data = await res.json();
+        console.log("Monitorias recebidas:", data);
+        return data;
       })
       .then(setMonitorias)
-      .catch((err) => setErro(err.message))
+      .catch((err) => {
+        setErro(err.message);
+        console.error("Erro monitorias:", err);
+      })
       .finally(() => setLoading(false));
   }, []);
 

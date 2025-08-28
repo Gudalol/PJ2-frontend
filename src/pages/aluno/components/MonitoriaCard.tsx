@@ -32,21 +32,24 @@ export function MonitoriaCard({ monitoria }: MonitoriaCardProps) {
   };
 
   return (
-    <Card className="w-full bg-[#FFFFFF] shadow-[#D9E2EC] border-none transition-all duration-300">
+    <Card className="w-full bg-gradient-to-br from-[#bddae2] via-[#e6f4ec] to-white rounded-xl shadow-md border border-[#b2c9d6] transition-all duration-300">
       <CardHeader>
-        <CardTitle className="text-base md:text-lg font-semibold text-gray-900">
+        <CardTitle className="text-lg font-semibold text-primary drop-shadow-sm">
           {monitoria.discipline}
         </CardTitle>
-        <CardDescription className="text-sm text-gray-600">
-          Matrícula do monitor: <span className="font-medium">{monitoria.monitor}</span>
+        <CardDescription className="text-gray-700">
+          Matrícula do monitor:{" "}
+          <span className="font-medium text-primary">{monitoria.monitor}</span>
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex flex-col gap-1 px-6 pb-4">
         <div className="text-sm text-gray-800">
-          <span className="font-medium">Dia:</span> {diasSemana[monitoria.dayOfWeek] || monitoria.dayOfWeek}
+          <span className="font-medium text-primary">Dia:</span>{" "}
+          {diasSemana[monitoria.dayOfWeek] || monitoria.dayOfWeek}
         </div>
         <div className="text-sm text-gray-800">
-          <span className="font-medium">Horário:</span> {monitoria.startTime.slice(0,5)} - {monitoria.endTime.slice(0,5)}
+          <span className="font-medium text-primary">Horário:</span>{" "}
+          {monitoria.startTime.slice(0, 5)} - {monitoria.endTime.slice(0, 5)}
         </div>
       </CardContent>
     </Card>
